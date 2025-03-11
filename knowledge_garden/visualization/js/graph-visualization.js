@@ -2,6 +2,8 @@
 let svg, width, height, simulation, nodes = [], links = [];
 let nodeElements, linkElements, textElements;
 let zoom, showLabels = true;
+let previousNodes = new Set(); // Track previous nodes for animation
+let previousLinks = new Set(); // Track previous links for animation
 
 // Initialize the visualization
 function initGraph() {
@@ -36,6 +38,10 @@ function initGraph() {
 // Load data from the knowledge garden
 function loadData() {
     document.getElementById('loading').style.display = 'block';
+    
+    // Store current nodes and links for comparison
+    previousNodes = new Set(nodes.map(n => n.id));
+    previousLinks = new Set(links.map(l => `${l.source.id || l.source}-${l.target.id || l.target}`));
     
     fetch('../index.json')
         .then(response => response.json())
@@ -135,7 +141,11 @@ function updateGraph() {
         .data(links)
         .enter()
         .append('line')
-        .attr('class', 'link')
+        .attr('class', d => {
+            // Check if this is a new link
+            const linkId = `${d.source}-${d.target}`;
+            return previousLinks.has(linkId) ? 'link' : 'link edge-added';
+        })
         .attr('stroke-width', d => d.type === 'related' ? 2 : 1)
         .attr('stroke-dasharray', d => d.type === 'tagged' ? '5,5' : null);
     
@@ -156,7 +166,11 @@ function updateGraph() {
     nodeElements = nodeGroups
         .append('circle')
         .attr('r', d => getNodeRadius(d))
-        .attr('fill', d => getNodeColor(d));
+        .attr('fill', d => getNodeColor(d))
+        .attr('class', d => {
+            // Check if this is a new node
+            return previousNodes.has(d.id) ? '' : 'node-added';
+        });
     
     // Add text labels to nodes
     textElements = nodeGroups
@@ -361,4 +375,36 @@ window.onload = function() {
         simulation.force('center', d3.forceCenter(width / 2, height / 2));
         simulation.alpha(0.3).restart();
     });
-}; 
+};
+
+// Add a new node to the graph (for real-time updates)
+function addNodeToGraph(nodeData) {
+    // Check if the node already exists
+    if (nodes.some(n => n.id === nodeData.id)) {
+        return;
+    }
+    
+    // Add the node
+    nodes.push(nodeData);
+    
+    // Update the graph
+    updateGraph();
+    
+    // Highlight the new node
+    highlightNewNode(nodeData.id);
+}
+
+// Add a new link to the graph (for real-time updates)
+function addLinkToGraph(linkData) {
+    // Check if the link already exists
+    const linkId = `${linkData.source}-${linkData.target}`;
+    if (links.some(l => `${l.source.id || l.source}-${l.target.id || l.target}` === linkId)) {
+        return;
+    }
+    
+    // Add the link
+    links.push(linkData);
+    
+    // Update the graph
+    updateGraph();
+} 

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Any
 import openai
 import random
+import subprocess
+import tiktoken
 
 # Initialize the OpenAI client with better error handling
 def initialize_openai_client(api_key=None):
@@ -164,6 +166,14 @@ knowledge_garden_tools = [
         }
     }
 ]
+
+# Import the record_tool_usage function if available
+try:
+    from serve_visualization import record_tool_usage
+except ImportError:
+    # Create a dummy function if the module is not available
+    def record_tool_usage(tool_name, args, result):
+        pass
 
 class KnowledgeGarden:
     """A garden of knowledge notes with semantic search capabilities"""
@@ -562,6 +572,13 @@ class KnowledgeGardenAgent:
                 result = self.garden.add_note(title, content, tags, related_notes)
                 results.append(result)
                 
+                # Record tool usage for visualization
+                record_tool_usage("add_note", {
+                    "title": title,
+                    "tags": tags,
+                    "related_notes": related_notes
+                }, result)
+                
             elif function_name == "search_notes":
                 query = function_args.get("query")
                 tags = function_args.get("tags", [])
@@ -571,6 +588,13 @@ class KnowledgeGardenAgent:
                 result = json.dumps(search_results, indent=2)
                 results.append(result)
                 
+                # Record tool usage for visualization
+                record_tool_usage("search_notes", {
+                    "query": query,
+                    "tags": tags,
+                    "limit": limit
+                }, result)
+                
             elif function_name == "expand_knowledge":
                 note_title = function_args.get("note_title")
                 expansion_type = function_args.get("expansion_type")
@@ -578,6 +602,13 @@ class KnowledgeGardenAgent:
                 
                 result = self.garden.expand_knowledge(note_title, expansion_type, depth)
                 results.append(result)
+                
+                # Record tool usage for visualization
+                record_tool_usage("expand_knowledge", {
+                    "note_title": note_title,
+                    "expansion_type": expansion_type,
+                    "depth": depth
+                }, result)
                 
             elif function_name == "extract_insights":
                 text = function_args.get("text")
@@ -587,6 +618,12 @@ class KnowledgeGardenAgent:
                 result = self.garden.extract_insights(text, parent_note, tags)
                 results.append(result)
                 
+                # Record tool usage for visualization
+                record_tool_usage("extract_insights", {
+                    "parent_note": parent_note,
+                    "tags": tags
+                }, result)
+                
             elif function_name == "create_exploration_path":
                 topic = function_args.get("topic")
                 subtopics = function_args.get("subtopics")
@@ -594,6 +631,12 @@ class KnowledgeGardenAgent:
                 
                 result = self.garden.create_exploration_path(topic, subtopics, description)
                 results.append(result)
+                
+                # Record tool usage for visualization
+                record_tool_usage("create_exploration_path", {
+                    "topic": topic,
+                    "subtopics": subtopics
+                }, result)
         
         return results
     
@@ -769,6 +812,14 @@ class KnowledgeGardenAgent:
         print(f"Starting autonomous exploration on '{seed_topic}' with {iterations} iterations")
         print(f"Exploration type: {exploration_type}, Depth: {depth}")
         
+        # Record the start of exploration
+        record_tool_usage("exploration_start", {
+            "seed_topic": seed_topic,
+            "iterations": iterations,
+            "depth": depth,
+            "exploration_type": exploration_type
+        }, "Exploration started")
+        
         # Create an initial note for the seed topic if it doesn't exist
         if seed_topic not in self.garden.index.get("notes", {}):
             # Generate initial content for the seed topic
@@ -816,6 +867,12 @@ class KnowledgeGardenAgent:
             # Add the seed topic note
             self.garden.add_note(seed_topic, content, tags)
             print(f"Created initial note for '{seed_topic}'")
+            
+            # Record the creation of the seed note
+            record_tool_usage("create_seed_note", {
+                "title": seed_topic,
+                "tags": tags
+            }, "Seed note created")
         
         # Perform exploration based on the specified type
         if exploration_type == 'breadth':

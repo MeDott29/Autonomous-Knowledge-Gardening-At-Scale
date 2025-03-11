@@ -22,6 +22,7 @@
                 <div id="centrality-tab" class="tab">Centrality</div>
                 <div id="connections-tab" class="tab">Connections</div>
                 <div id="tools-tab" class="tab">Tools</div>
+                <div id="activity-tab" class="tab">Activity</div>
             </div>
             
             <!-- Details Tab Content -->
@@ -98,9 +99,9 @@
                     <div style="margin-bottom: 10px;">
                         <label for="subgraph-distance">Distance:</label>
                         <select id="subgraph-distance">
-                            <option value="1">1</option>
-                            <option value="2" selected>2</option>
-                            <option value="3">3</option>
+                            <option value="1">1 hop</option>
+                            <option value="2" selected>2 hops</option>
+                            <option value="3">3 hops</option>
                         </select>
                     </div>
                     
@@ -108,6 +109,45 @@
                     <button onclick="resetHighlighting()">Reset</button>
                     
                     <div id="subgraph-result" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+            
+            <!-- Activity Tab Content -->
+            <div id="activity-tab-content" class="tab-content">
+                <div class="activity-header">
+                    <h3>Real-time Agent Activity</h3>
+                    <div class="activity-status">
+                        <span id="connection-status" class="status-indicator offline">Offline</span>
+                        <button id="clear-activity" onclick="clearActivityLog()">Clear Log</button>
+                    </div>
+                </div>
+                
+                <div id="activity-log" class="activity-log">
+                    <div class="activity-message">Connecting to agent activity feed...</div>
+                </div>
+                
+                <div class="activity-legend">
+                    <h4>Tool Legend</h4>
+                    <div class="legend-item">
+                        <span class="tool-icon add-note">AN</span>
+                        <span class="legend-label">Add Note</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="tool-icon search-notes">SN</span>
+                        <span class="legend-label">Search Notes</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="tool-icon expand-knowledge">EK</span>
+                        <span class="legend-label">Expand Knowledge</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="tool-icon extract-insights">EI</span>
+                        <span class="legend-label">Extract Insights</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="tool-icon create-path">CP</span>
+                        <span class="legend-label">Create Path</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -118,12 +158,30 @@
             <div class="controls">
                 <button onclick="resetZoom()">Reset View</button>
                 <button onclick="toggleLabels()">Toggle Labels</button>
+                <button onclick="toggleRealTimeUpdates()" id="realtime-toggle">Pause Updates</button>
+            </div>
+            
+            <!-- Real-time notification -->
+            <div id="realtime-notification" class="realtime-notification">
+                <div class="notification-content">
+                    <span id="notification-text">Garden updated</span>
+                    <button class="close-notification" onclick="dismissNotification()">×</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- WebSocket connection for real-time updates -->
+    <script>
+        // Will be initialized in ui-interactions.js
+        let websocket = null;
+        let realtimeUpdatesEnabled = true;
+    </script>
+    
+    <!-- Load scripts -->
     <script src="js/graph-visualization.js"></script>
     <script src="js/graph-analysis.js"></script>
     <script src="js/ui-interactions.js"></script>
+    <script src="js/realtime-updates.js"></script>
 </body>
 </html> 
