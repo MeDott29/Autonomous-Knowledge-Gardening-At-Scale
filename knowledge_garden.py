@@ -201,11 +201,33 @@ class KnowledgeGarden:
     
     def load_index(self):
         """Load the knowledge garden index"""
-        with open(self.index_file, "r") as f:
-            self.index = json.load(f)
-            # Ensure paths key exists
+        if not self.index_file.exists():
+            # Create the index file if it doesn't exist
+            self.setup_garden()
+        
+        try:
+            with open(self.index_file, "r") as f:
+                self.index = json.load(f)
+            
+            # Ensure all required keys exist
+            if "notes" not in self.index:
+                self.index["notes"] = {}
+            if "tags" not in self.index:
+                self.index["tags"] = {}
             if "paths" not in self.index:
                 self.index["paths"] = {}
+            
+            # Save the updated index
+            self.save_index()
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            print(f"Error loading index: {e}. Creating a new index.")
+            self.index = {
+                "notes": {},
+                "tags": {},
+                "paths": {},
+                "last_updated": datetime.datetime.now().isoformat()
+            }
+            self.save_index()
     
     def save_index(self):
         """Save the knowledge garden index"""

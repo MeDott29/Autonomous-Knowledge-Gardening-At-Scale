@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Knowledge Garden Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            color: #333;
+            background-color: #f5f8fa;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-link {
+            color: #3498db;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #3498db;
+        }
+        .metric-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        .dashboard-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .chart-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .two-column {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .column {
+            flex: 1;
+            min-width: 300px;
+        }
+        .activity-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e1f5fe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .activity-icon.add {
+            background: #e8f5e9;
+            color: #4caf50;
+        }
+        .activity-icon.update {
+            background: #fff8e1;
+            color: #ffc107;
+        }
+        .activity-content {
+            flex-grow: 1;
+        }
+        .activity-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .activity-time {
+            font-size: 0.8em;
+            color: #95a5a6;
+        }
+        .activity-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .activity-tag {
+            background: #ecf0f1;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            color: #7f8c8d;
+        }
+        .connected-list {
+            list-style: none;
+            padding: 0;
+        }
+        .connected-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .connected-title {
+            font-weight: bold;
+            color: #3498db;
+        }
+        .connected-count {
+            background: #3498db;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
+        .graph-container {
+            margin-top: 30px;
+        }
+        .node-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .node-item {
+            background: #ecf0f1;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .node-item.hub {
+            background: #e3f2fd;
+            border-left: 3px solid #2196F3;
+        }
+        .node-item.bridge {
+            background: #fff8e1;
+            border-left: 3px solid #ffc107;
+        }
+        .refresh-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .refresh-button:hover {
+            background: #2980b9;
+        }
+        .last-updated {
+            font-size: 0.8em;
+            color: #95a5a6;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <h1>Knowledge Garden Dashboard</h1>
+        <div>
+            <a href="/" class="back-link">← Back to Knowledge Garden</a>
+            <button class="refresh-button" onclick="window.location.reload()">
+                ↻ Refresh Dashboard
+            </button>
+            <div class="last-updated">
+                Last updated: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Metrics -->
+    <div class="metrics-container">
+        <div class="metric-card">
+            <div class="metric-label">Total Notes</div>
+            <div class="metric-value">{{ total_notes }}</div>
+            <div>Knowledge Nodes</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Connections</div>
+            <div class="metric-value">{{ total_connections }}</div>
+            <div>Relationships</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Hub Nodes</div>
+            <div class="metric-value">{{ hub_nodes|length }}</div>
+            <div>Central Concepts</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Bridge Nodes</div>
+            <div class="metric-value">{{ bridge_nodes|length }}</div>
+            <div>Connecting Concepts</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Tags</div>
+            <div class="metric-value">{{ total_tags }}</div>
+            <div>Categories</div>
+        </div>
+    </div>
+    
+    <!-- Growth Charts -->
+    <div class="dashboard-section">
+        <h2>Knowledge Garden Growth</h2>
+        <div class="chart-container">
+            {% if growth_chart %}
+                <img src="data:image/png;base64,{{ growth_chart }}" alt="Growth Chart" class="chart-img">
+            {% else %}
+                <p>Not enough data to generate growth chart.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="two-column">
+        <!-- Connection Density -->
+        <div class="column dashboard-section">
+            <h2>Connection Density</h2>
+            <div class="chart-container">
+                {% if connection_chart %}
+                    <img src="data:image/png;base64,{{ connection_chart }}" alt="Connection Density Chart" class="chart-img">
+                {% else %}
+                    <p>Not enough data to generate connection chart.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Tag Distribution -->
+        <div class="column dashboard-section">
+            <h2>Tag Distribution</h2>
+            <div class="chart-container">
+                {% if tag_chart %}
+                    <img src="data:image/png;base64,{{ tag_chart }}" alt="Tag Distribution Chart" class="chart-img">
+                {% else %}
+                    <p>Not enough data to generate tag chart.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="two-column">
+        <!-- Recent Activity -->
+        <div class="column dashboard-section">
+            <h2>Recent Activity</h2>
+            {% if recent_changes %}
+                {% for change in recent_changes %}
+                    <div class="activity-item">
+                        <div class="activity-icon {{ change.action }}">
+                            {{ "+" if change.action == "add" else "↻" }}
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">
+                                <a href="/note/{{ change.title }}">{{ change.title }}</a>
+                            </div>
+                            <div class="activity-time">
+                                {{ change.action|title }}d {{ change.time }}
+                            </div>
+                            {% if change.tags %}
+                                <div class="activity-tags">
+                                    {% for tag in change.tags[:3] %}
+                                        <span class="activity-tag">{{ tag }}</span>
+                                    {% endfor %}
+                                    {% if change.tags|length > 3 %}
+                                        <span class="activity-tag">+{{ change.tags|length - 3 }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No recent activity.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Most Connected Notes -->
+        <div class="column dashboard-section">
+            <h2>Most Connected Notes</h2>
+            {% if most_connected %}
+                <ul class="connected-list">
+                    {% for title, count in most_connected %}
+                        <li class="connected-item">
+                            <a href="/note/{{ title }}" class="connected-title">{{ title }}</a>
+                            <span class="connected-count">{{ count }} connections</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No connected notes found.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Knowledge Network Structure -->
+    <div class="dashboard-section">
+        <h2>Knowledge Network Structure</h2>
+        
+        <div class="two-column">
+            <div class="column">
+                <h3>Hub Nodes (Central Concepts)</h3>
+                <div class="node-list">
+                    {% for node in hub_nodes[:10] %}
+                        <a href="/note/{{ node }}" class="node-item hub">{{ node }}</a>
+                    {% endfor %}
+                    {% if hub_nodes|length > 10 %}
+                        <span class="node-item">+{{ hub_nodes|length - 10 }} more</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="column">
+                <h3>Bridge Nodes (Connecting Concepts)</h3>
+                <div class="node-list">
+                    {% for node in bridge_nodes[:10] %}
+                        <a href="/note/{{ node }}" class="node-item bridge">{{ node }}</a>
+                    {% endfor %}
+                    {% if bridge_nodes|length > 10 %}
+                        <span class="node-item">+{{ bridge_nodes|length - 10 }} more</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Knowledge Graph Visualization -->
+        <div class="graph-container">
+            {{ graph_preview|safe }}
+        </div>
+    </div>
+    
+    <script>
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Highlight the most important metrics
+            const metricValues = document.querySelectorAll('.metric-value');
+            metricValues.forEach(value => {
+                if (parseInt(value.textContent) > 0) {
+                    value.style.animation = 'pulse 2s infinite';
+                }
+            });
+            
+            // Add pulse animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes pulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html> 

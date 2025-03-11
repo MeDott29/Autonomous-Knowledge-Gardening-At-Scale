@@ -7,7 +7,12 @@ import base64
 import re
 from typing import List, Optional
 import datetime
+from datetime import datetime, timedelta
 import tempfile
+import matplotlib.pyplot as plt
+import io
+import numpy as np
+from collections import Counter
 
 # Flask for web interface
 from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, send_from_directory
@@ -89,9 +94,7 @@ def process_image_file(file_path):
     
     # Add base64 encoding of the image for GPT-4o to see the image
     try:
-        import base64
         from PIL import Image
-        import io
         
         # Open the image and convert to base64
         img = Image.open(file_path)
@@ -114,12 +117,12 @@ def process_image_file(file_path):
         content += f"<!-- Base64 image data for AI models: data:image/{img_format.lower()};base64,{img_base64} -->\n\n"
         
         # Add image metadata
-        content += f"Image uploaded on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        content += f"Image uploaded on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         content += f"Dimensions: {img.width}x{img.height} pixels\n"
         
     except Exception as e:
         # If there's an error with the image processing, just add basic info
-        content += f"Image uploaded on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        content += f"Image uploaded on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         content += f"Error processing image details: {str(e)}\n"
     
     return title, content, []
@@ -251,82 +254,220 @@ def identify_bridge_nodes(notes):
     
     return bridge_count
 
-def generate_graph_preview(notes, max_nodes=10):
-    """Generate an HTML preview of the knowledge graph structure"""
+def generate_graph_preview(notes, max_nodes=None):
+    """Generate an interactive D3.js preview of the knowledge graph structure based on agentic principles"""
     if not notes:
         return '<div class="empty-graph">No notes in the knowledge garden yet.</div>'
     
-    # Take a sample of nodes, prioritizing those with more connections
-    sorted_nodes = sorted(notes.items(), key=lambda x: len(x[1].get('related_notes', [])), reverse=True)
-    sample_nodes = sorted_nodes[:max_nodes]
+    # If max_nodes is None, include all nodes, otherwise limit to the specified number
+    if max_nodes:
+        # Take a sample of nodes, prioritizing those with more connections
+        sorted_nodes = sorted(notes.items(), key=lambda x: len(x[1].get('related_notes', [])), reverse=True)
+        sample_nodes = sorted_nodes[:max_nodes]
+    else:
+        sample_nodes = list(notes.items())
     
-    # Create a simple HTML visualization
-    html = ['<div class="knowledge-graph">']
+    # Create data for D3.js visualization
+    nodes = []
+    links = []
+    node_titles = []
+    
+    # Identify hub nodes (nodes with many connections)
+    hub_threshold = 5  # Nodes with 5+ connections are considered hubs
+    hub_nodes = identify_hub_nodes(notes, hub_threshold)
+    
+    # Identify bridge nodes (nodes that connect otherwise disconnected components)
+    bridge_nodes = identify_bridge_nodes(notes)
     
     # Add nodes
-    html.append('<div class="graph-nodes">')
     for title, note in sample_nodes:
+        node_titles.append(title)
+        
+        # Determine node type based on connections, tags, and role
+        node_type = "standard"
         related = note.get('related_notes', [])
         tags = note.get('tags', [])
         
-        # Determine node class based on connections
-        node_class = "graph-node"
-        if len(related) >= 5:
-            node_class += " hub-node"
+        if title in hub_nodes:
+            node_type = "hub"
+        elif title in bridge_nodes:
+            node_type = "bridge"
         elif any(tag in ["query-response", "image-analysis"] for tag in tags):
-            node_class += " query-node"
+            node_type = "query"
         
-        html.append(f'<div class="{node_class}" data-title="{title}">')
-        html.append(f'<div class="node-title"><a href="/note/{title}">{title[:20]}{"..." if len(title) > 20 else ""}</a></div>')
+        # Calculate node size based on connections (degree centrality)
+        node_size = 25 + min(len(related) * 5, 25)  # Base size + connections (capped)
         
-        # Add tag indicators
-        if tags:
-            html.append('<div class="node-tags">')
-            for tag in tags[:3]:
-                html.append(f'<span class="node-tag">{tag}</span>')
-            if len(tags) > 3:
-                html.append(f'<span class="node-tag">+{len(tags) - 3}</span>')
-            html.append('</div>')
-        
-        html.append('</div>')
-    html.append('</div>')
+        nodes.append({
+            "id": title,
+            "type": node_type,
+            "tags": tags[:3],  # Limit to 3 tags for display
+            "size": node_size,
+            "connections": len(related)
+        })
     
-    # Add connections
-    html.append('<div class="graph-connections">')
-    html.append('<ul>')
+    # Add links
     for title, note in sample_nodes:
-        related = [r for r in note.get('related_notes', []) if r in [n[0] for n in sample_nodes]]
-        if related:
-            html.append(f'<li><strong>{title}</strong> connects to: {", ".join(related[:3])}')
-            if len(related) > 3:
-                html.append(f' and {len(related) - 3} more')
-            html.append('</li>')
-    html.append('</ul>')
-    html.append('</div>')
+        related = [r for r in note.get('related_notes', []) if r in node_titles]
+        for related_title in related:
+            # Check if this link already exists in reverse direction
+            if not any(link["source"] == related_title and link["target"] == title for link in links):
+                links.append({
+                    "source": title,
+                    "target": related_title,
+                    "value": 1  # Could be weighted based on relationship strength
+                })
     
-    # Add legend
-    html.append('<div class="graph-legend">')
-    html.append('<div><span class="legend-item hub-node"></span> Hub Node (5+ connections)</div>')
-    html.append('<div><span class="legend-item query-node"></span> Query Response</div>')
-    html.append('<div><span class="legend-item graph-node"></span> Standard Note</div>')
-    html.append('</div>')
-    
-    # Add CSS
-    html.append('<style>')
-    html.append('.knowledge-graph { margin-top: 15px; }')
-    html.append('.graph-nodes { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }')
-    html.append('.graph-node { border: 1px solid #ddd; border-radius: 5px; padding: 8px; width: 120px; text-align: center; background: #f9f9f9; }')
-    html.append('.hub-node { background: #e3f2fd; border-color: #2196F3; }')
-    html.append('.query-node { background: #f1f8e9; border-color: #8bc34a; }')
-    html.append('.node-title { font-weight: bold; margin-bottom: 5px; }')
-    html.append('.node-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }')
-    html.append('.node-tag { font-size: 0.7em; background: #eee; padding: 2px 4px; border-radius: 3px; }')
-    html.append('.graph-connections { margin-top: 10px; font-size: 0.9em; }')
-    html.append('.graph-legend { margin-top: 15px; display: flex; gap: 15px; font-size: 0.8em; }')
-    html.append('.legend-item { display: inline-block; width: 15px; height: 15px; margin-right: 5px; border: 1px solid #ddd; border-radius: 3px; vertical-align: middle; }')
-    html.append('</style>')
-    
-    html.append('</div>')
+    # Create the HTML with embedded JavaScript
+    html = [
+        '<div id="knowledge-graph-container" style="width: 100%; height: 500px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;"></div>',
+        '<script src="https://d3js.org/d3.v7.min.js"></script>',
+        '<script>',
+        '(function() {',
+        '  const data = ' + json.dumps({"nodes": nodes, "links": links}) + ';',
+        '  const width = document.getElementById("knowledge-graph-container").clientWidth;',
+        '  const height = document.getElementById("knowledge-graph-container").clientHeight;',
+        '',
+        '  // Create the SVG container',
+        '  const svg = d3.select("#knowledge-graph-container")',
+        '    .append("svg")',
+        '    .attr("width", width)',
+        '    .attr("height", height)',
+        '    .attr("viewBox", [0, 0, width, height]);',
+        '',
+        '  // Define node colors based on type',
+        '  const nodeColors = {',
+        '    "hub": "#e3f2fd",',
+        '    "bridge": "#fff8e1",',
+        '    "query": "#f1f8e9",',
+        '    "standard": "#f9f9f9"',
+        '  };',
+        '',
+        '  // Define node border colors based on type',
+        '  const nodeBorderColors = {',
+        '    "hub": "#2196F3",',
+        '    "bridge": "#FFC107",',
+        '    "query": "#8bc34a",',
+        '    "standard": "#ddd"',
+        '  };',
+        '',
+        '  // Create a force simulation',
+        '  const simulation = d3.forceSimulation(data.nodes)',
+        '    .force("link", d3.forceLink(data.links).id(d => d.id).distance(d => 100 + Math.min(d.source.connections + d.target.connections, 50)))',
+        '    .force("charge", d3.forceManyBody().strength(d => -100 - d.size * 5))',
+        '    .force("center", d3.forceCenter(width / 2, height / 2))',
+        '    .force("collide", d3.forceCollide().radius(d => d.size + 10));',
+        '',
+        '  // Create the links',
+        '  const link = svg.append("g")',
+        '    .selectAll("line")',
+        '    .data(data.links)',
+        '    .join("line")',
+        '    .attr("stroke", "#999")',
+        '    .attr("stroke-opacity", 0.6)',
+        '    .attr("stroke-width", d => Math.sqrt(d.value) * 1.5);',
+        '',
+        '  // Create the nodes',
+        '  const node = svg.append("g")',
+        '    .selectAll("g")',
+        '    .data(data.nodes)',
+        '    .join("g")',
+        '    .call(drag(simulation));',
+        '',
+        '  // Add circles for nodes',
+        '  node.append("circle")',
+        '    .attr("r", d => d.size)',
+        '    .attr("fill", d => nodeColors[d.type])',
+        '    .attr("stroke", d => nodeBorderColors[d.type])',
+        '    .attr("stroke-width", d => d.type === "hub" ? 3 : d.type === "bridge" ? 2 : 1.5);',
+        '',
+        '  // Add text labels',
+        '  node.append("text")',
+        '    .text(d => d.id.length > 15 ? d.id.substring(0, 12) + "..." : d.id)',
+        '    .attr("text-anchor", "middle")',
+        '    .attr("dy", 5)',
+        '    .attr("font-size", "10px")',
+        '    .attr("pointer-events", "none");',
+        '',
+        '  // Add tag indicators if present',
+        '  node.append("text")',
+        '    .attr("text-anchor", "middle")',
+        '    .attr("dy", d => d.size + 15)',
+        '    .attr("font-size", "8px")',
+        '    .attr("fill", "#666")',
+        '    .attr("pointer-events", "none")',
+        '    .text(d => d.tags.length > 0 ? d.tags.join(", ") : "");',
+        '',
+        '  // Add click behavior to navigate to note',
+        '  node.on("click", function(event, d) {',
+        '    window.location.href = "/note/" + encodeURIComponent(d.id);',
+        '  });',
+        '',
+        '  // Add tooltips',
+        '  node.append("title")',
+        '    .text(d => `${d.id}\nType: ${d.type}\nConnections: ${d.connections}\nTags: ${d.tags.join(", ")}`);',
+        '',
+        '  // Update positions on each tick of the simulation',
+        '  simulation.on("tick", () => {',
+        '    link',
+        '      .attr("x1", d => d.source.x)',
+        '      .attr("y1", d => d.source.y)',
+        '      .attr("x2", d => d.target.x)',
+        '      .attr("y2", d => d.target.y);',
+        '',
+        '    node.attr("transform", d => {',
+        '      // Keep nodes within bounds',
+        '      d.x = Math.max(d.size, Math.min(width - d.size, d.x));',
+        '      d.y = Math.max(d.size, Math.min(height - d.size, d.y));',
+        '      return `translate(${d.x},${d.y})`;',
+        '    });',
+        '  });',
+        '',
+        '  // Drag behavior function',
+        '  function drag(simulation) {',
+        '    function dragstarted(event) {',
+        '      if (!event.active) simulation.alphaTarget(0.3).restart();',
+        '      event.subject.fx = event.subject.x;',
+        '      event.subject.fy = event.subject.y;',
+        '    }',
+        '',
+        '    function dragged(event) {',
+        '      event.subject.fx = event.x;',
+        '      event.subject.fy = event.y;',
+        '    }',
+        '',
+        '    function dragended(event) {',
+        '      if (!event.active) simulation.alphaTarget(0);',
+        '      event.subject.fx = null;',
+        '      event.subject.fy = null;',
+        '    }',
+        '',
+        '    return d3.drag()',
+        '      .on("start", dragstarted)',
+        '      .on("drag", dragged)',
+        '      .on("end", dragended);',
+        '  }',
+        '})();',
+        '</script>',
+        '',
+        '<!-- Legend for the graph -->',
+        '<div class="graph-legend" style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.8em;">',
+        '  <div><span style="display: inline-block; width: 15px; height: 15px; margin-right: 5px; background: #e3f2fd; border: 3px solid #2196F3; border-radius: 50%; vertical-align: middle;"></span> Hub Node (5+ connections)</div>',
+        '  <div><span style="display: inline-block; width: 15px; height: 15px; margin-right: 5px; background: #fff8e1; border: 2px solid #FFC107; border-radius: 50%; vertical-align: middle;"></span> Bridge Node (connects components)</div>',
+        '  <div><span style="display: inline-block; width: 15px; height: 15px; margin-right: 5px; background: #f1f8e9; border: 1.5px solid #8bc34a; border-radius: 50%; vertical-align: middle;"></span> Query Response</div>',
+        '  <div><span style="display: inline-block; width: 15px; height: 15px; margin-right: 5px; background: #f9f9f9; border: 1.5px solid #ddd; border-radius: 50%; vertical-align: middle;"></span> Standard Note</div>',
+        '</div>',
+        '',
+        '<div style="margin-top: 15px; font-size: 0.9em;">',
+        '  <p><strong>Agentic Knowledge Graph:</strong> This visualization represents your knowledge garden as a self-organizing network based on principles from the paper "Agentic Deep Graph Reasoning Yields Self-Organizing Knowledge Networks".</p>',
+        '  <ul style="margin-top: 5px;">',
+        '    <li><strong>Hub nodes</strong> (blue) are central concepts with many connections</li>',
+        '    <li><strong>Bridge nodes</strong> (yellow) connect otherwise separate knowledge clusters</li>',
+        '    <li>Node size represents the number of connections</li>',
+        '    <li>Drag nodes to explore the network structure</li>',
+        '  </ul>',
+        '</div>'
+    ]
     
     return '\n'.join(html)
 
@@ -609,8 +750,8 @@ def find_relevant_nodes(query, max_nodes=5):
         if 'created' in note:
             # Calculate days since creation (newer notes get higher scores)
             try:
-                created_date = datetime.datetime.fromisoformat(note['created'])
-                days_old = (datetime.datetime.now() - created_date).days
+                created_date = datetime.fromisoformat(note['created'])
+                days_old = (datetime.now() - created_date).days
                 recency_score = max(0, 10 - (days_old / 30))  # Higher score for newer notes
             except (ValueError, TypeError):
                 pass
@@ -769,32 +910,36 @@ def explore_topic():
         flash('Please enter a topic to explore')
         return redirect(url_for('index'))
     
-    # Start exploration in a background thread
+    print(f"Starting autonomous exploration on '{topic}' with {iterations} iterations")
+    print(f"Exploration type: {exploration_type}, Depth: {1 if exploration_type == 'breadth' else 2 if exploration_type in ['hub', 'bridge'] else 3}")
+    
+    # Start exploration in a background thread without using Flask's flash
     import threading
+    
     def run_exploration():
         try:
             if exploration_type == 'breadth':
                 # Breadth-first exploration - explore many related concepts
                 agent.autonomous_exploration(topic, iterations=iterations, depth=1, exploration_type='breadth')
-                flash(f'Breadth-first exploration of "{topic}" completed with {iterations} iterations')
+                print(f'Breadth-first exploration of "{topic}" completed with {iterations} iterations')
             elif exploration_type == 'depth':
                 # Depth-first exploration - explore fewer concepts in detail
                 agent.autonomous_exploration(topic, iterations=iterations, depth=3, exploration_type='depth')
-                flash(f'Depth-first exploration of "{topic}" completed with {iterations} iterations')
+                print(f'Depth-first exploration of "{topic}" completed with {iterations} iterations')
             elif exploration_type == 'hub':
                 # Hub-focused exploration - build around central concepts
                 agent.autonomous_exploration(topic, iterations=iterations, depth=2, exploration_type='hub')
-                flash(f'Hub-focused exploration of "{topic}" completed with {iterations} iterations')
+                print(f'Hub-focused exploration of "{topic}" completed with {iterations} iterations')
             elif exploration_type == 'bridge':
                 # Bridge-focused exploration - connect disparate knowledge areas
                 agent.autonomous_exploration(topic, iterations=iterations, depth=2, exploration_type='bridge')
-                flash(f'Bridge-focused exploration of "{topic}" completed with {iterations} iterations')
+                print(f'Bridge-focused exploration of "{topic}" completed with {iterations} iterations')
             else:
                 # Default to breadth-first
                 agent.autonomous_exploration(topic, iterations=iterations)
-                flash(f'Exploration of "{topic}" completed with {iterations} iterations')
+                print(f'Exploration of "{topic}" completed with {iterations} iterations')
         except Exception as e:
-            flash(f'Error during exploration: {str(e)}')
+            print(f'Error during exploration: {str(e)}')
             import traceback
             traceback.print_exc()
     
@@ -1483,7 +1628,6 @@ def process_image_for_query(file_path, detail="auto"):
         A dictionary formatted for the OpenAI API with the image data
     """
     try:
-        import base64
         from PIL import Image
         import io
         
@@ -1543,6 +1687,241 @@ def process_image_for_query(file_path, detail="auto"):
     except Exception as e:
         print(f"Error processing image for query: {str(e)}")
         return None
+
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard showing knowledge garden activity and growth"""
+    # Get all notes from the garden
+    notes = garden.index.get("notes", {})
+    tags = garden.index.get("tags", {})
+    
+    # Calculate basic metrics
+    total_notes = len(notes)
+    total_tags = len(tags)
+    total_connections = calculate_edge_count(notes)
+    
+    # Get hub and bridge nodes
+    hub_nodes = identify_hub_nodes(notes, threshold=5)
+    bridge_nodes = identify_bridge_nodes(notes)
+    
+    # Calculate growth over time
+    growth_data = calculate_growth_over_time(notes)
+    growth_chart = generate_growth_chart(growth_data)
+    
+    # Calculate tag distribution
+    tag_distribution = calculate_tag_distribution(notes)
+    tag_chart = generate_tag_chart(tag_distribution)
+    
+    # Calculate connection density over time
+    connection_data = calculate_connection_density_over_time(notes)
+    connection_chart = generate_connection_chart(connection_data)
+    
+    # Get recent activity
+    recent_changes = get_recent_changes(notes, limit=10)
+    
+    # Get most connected notes
+    most_connected = sorted(
+        [(title, len(data.get('related_notes', []))) for title, data in notes.items()],
+        key=lambda x: x[1],
+        reverse=True
+    )[:10]
+    
+    # Generate the knowledge graph preview
+    graph_preview = generate_graph_preview(notes, max_nodes=50)
+    
+    return render_template('dashboard.html',
+                          notes=notes,
+                          tags=tags,
+                          total_notes=total_notes,
+                          total_tags=total_tags,
+                          total_connections=total_connections,
+                          hub_nodes=hub_nodes,
+                          bridge_nodes=bridge_nodes,
+                          growth_chart=growth_chart,
+                          tag_chart=tag_chart,
+                          connection_chart=connection_chart,
+                          recent_changes=recent_changes,
+                          most_connected=most_connected,
+                          graph_preview=graph_preview)
+
+def calculate_growth_over_time(notes):
+    """Calculate the growth of notes over time"""
+    # Extract creation dates
+    dates = []
+    for title, data in notes.items():
+        if 'created' in data:
+            try:
+                date = datetime.fromisoformat(data['created'].split('T')[0])
+                dates.append(date)
+            except (ValueError, IndexError):
+                continue
+    
+    if not dates:
+        return {}
+    
+    # Sort dates
+    dates.sort()
+    
+    # Create date range from first note to today
+    start_date = dates[0]
+    end_date = datetime.now()
+    
+    # Group by week
+    weeks = {}
+    current_date = start_date
+    while current_date <= end_date:
+        week_key = current_date.strftime('%Y-%U')  # Year and week number
+        weeks[week_key] = 0
+        current_date += timedelta(days=7)
+    
+    # Count notes per week
+    for date in dates:
+        week_key = date.strftime('%Y-%U')
+        if week_key in weeks:
+            weeks[week_key] += 1
+    
+    # Convert to cumulative growth
+    cumulative = 0
+    cumulative_growth = {}
+    for week, count in sorted(weeks.items()):
+        cumulative += count
+        # Format as "YYYY-MM-DD" for the first day of the week
+        year, week_num = week.split('-')
+        date_obj = datetime.strptime(f'{year}-{week_num}-1', '%Y-%U-%w')
+        date_str = date_obj.strftime('%Y-%m-%d')
+        cumulative_growth[date_str] = cumulative
+    
+    return cumulative_growth
+
+def generate_growth_chart(growth_data):
+    """Generate a chart showing growth over time"""
+    if not growth_data:
+        return None
+    
+    plt.figure(figsize=(10, 4))
+    dates = list(growth_data.keys())
+    counts = list(growth_data.values())
+    
+    plt.plot(dates, counts, marker='o', linestyle='-', color='#3498db')
+    plt.title('Knowledge Garden Growth Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Number of Notes')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # Save the plot to a base64 string
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    plt.close()
+    
+    return base64.b64encode(image_png).decode('utf-8')
+
+def calculate_tag_distribution(notes):
+    """Calculate the distribution of tags"""
+    tag_counts = Counter()
+    
+    for title, data in notes.items():
+        for tag in data.get('tags', []):
+            tag_counts[tag] += 1
+    
+    # Get the top 15 tags
+    return tag_counts.most_common(15)
+
+def generate_tag_chart(tag_distribution):
+    """Generate a chart showing tag distribution"""
+    if not tag_distribution:
+        return None
+    
+    plt.figure(figsize=(10, 5))
+    tags = [tag for tag, count in tag_distribution]
+    counts = [count for tag, count in tag_distribution]
+    
+    plt.barh(tags, counts, color='#2ecc71')
+    plt.title('Most Common Tags')
+    plt.xlabel('Number of Notes')
+    plt.ylabel('Tag')
+    plt.tight_layout()
+    plt.grid(True, linestyle='--', alpha=0.7, axis='x')
+    
+    # Save the plot to a base64 string
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    plt.close()
+    
+    return base64.b64encode(image_png).decode('utf-8')
+
+def calculate_connection_density_over_time(notes):
+    """Calculate the connection density over time"""
+    # Extract creation dates and connections
+    date_connections = []
+    for title, data in notes.items():
+        if 'created' in data:
+            try:
+                date = datetime.fromisoformat(data['created'].split('T')[0])
+                connections = len(data.get('related_notes', []))
+                date_connections.append((date, connections))
+            except (ValueError, IndexError):
+                continue
+    
+    if not date_connections:
+        return {}
+    
+    # Sort by date
+    date_connections.sort()
+    
+    # Group by week
+    weeks = {}
+    for date, connections in date_connections:
+        week_key = date.strftime('%Y-%U')  # Year and week number
+        if week_key not in weeks:
+            weeks[week_key] = []
+        weeks[week_key].append(connections)
+    
+    # Calculate average connections per note for each week
+    avg_connections = {}
+    for week, connections in sorted(weeks.items()):
+        avg = sum(connections) / len(connections) if connections else 0
+        # Format as "YYYY-MM-DD" for the first day of the week
+        year, week_num = week.split('-')
+        date_obj = datetime.strptime(f'{year}-{week_num}-1', '%Y-%U-%w')
+        date_str = date_obj.strftime('%Y-%m-%d')
+        avg_connections[date_str] = avg
+    
+    return avg_connections
+
+def generate_connection_chart(connection_data):
+    """Generate a chart showing connection density over time"""
+    if not connection_data:
+        return None
+    
+    plt.figure(figsize=(10, 4))
+    dates = list(connection_data.keys())
+    avgs = list(connection_data.values())
+    
+    plt.plot(dates, avgs, marker='o', linestyle='-', color='#e74c3c')
+    plt.title('Average Connections Per Note Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Avg. Connections')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # Save the plot to a base64 string
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    plt.close()
+    
+    return base64.b64encode(image_png).decode('utf-8')
 
 if __name__ == "__main__":
     main() 
