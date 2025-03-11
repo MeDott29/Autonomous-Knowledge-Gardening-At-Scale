@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Garden Visualization</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">
+                <h1>Knowledge Garden</h1>
+                <button class="refresh-btn" onclick="loadData()">Refresh</button>
+            </div>
+            
+            <div class="tabs">
+                <div id="details-tab" class="tab active">Details</div>
+                <div id="analysis-tab" class="tab">Analysis</div>
+                <div id="communities-tab" class="tab">Communities</div>
+                <div id="centrality-tab" class="tab">Centrality</div>
+                <div id="connections-tab" class="tab">Connections</div>
+                <div id="tools-tab" class="tab">Tools</div>
+            </div>
+            
+            <!-- Details Tab Content -->
+            <div id="details-tab-content" class="tab-content active">
+                <div id="note-details" class="note-details" style="display: none;">
+                    <h2 id="note-title"></h2>
+                    <div id="note-content" class="note-content"></div>
+                    <div id="note-tags"></div>
+                    <div class="note-meta">
+                        Created: <span id="note-created"></span>
+                    </div>
+                </div>
+                
+                <div id="stats">
+                    <h3>Garden Statistics</h3>
+                    <p>Notes: <span id="notes-count">0</span></p>
+                    <p>Tags: <span id="tags-count">0</span></p>
+                    <p>Connections: <span id="connections-count">0</span></p>
+                    <p>Last updated: <span id="last-updated">Never</span></p>
+                </div>
+            </div>
+            
+            <!-- Analysis Tab Content -->
+            <div id="analysis-tab-content" class="tab-content">
+                <div class="loading">Loading analysis data...</div>
+            </div>
+            
+            <!-- Communities Tab Content -->
+            <div id="communities-tab-content" class="tab-content">
+                <div class="loading">Loading community data...</div>
+            </div>
+            
+            <!-- Centrality Tab Content -->
+            <div id="centrality-tab-content" class="tab-content">
+                <div class="loading">Loading centrality data...</div>
+            </div>
+            
+            <!-- Connections Tab Content -->
+            <div id="connections-tab-content" class="tab-content">
+                <div class="loading">Loading semantic connections...</div>
+            </div>
+            
+            <!-- Tools Tab Content -->
+            <div id="tools-tab-content" class="tab-content">
+                <div class="analysis-section">
+                    <h3>Path Finding</h3>
+                    <p>Find paths between two nodes in the knowledge graph.</p>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label for="path-source">Source Node:</label>
+                        <input type="text" id="path-source" placeholder="Source node title">
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label for="path-target">Target Node:</label>
+                        <input type="text" id="path-target" placeholder="Target node title">
+                    </div>
+                    
+                    <button onclick="findPaths()">Find Paths</button>
+                    <button onclick="resetHighlighting()">Reset</button>
+                    
+                    <div id="paths-result" style="margin-top: 15px;"></div>
+                </div>
+                
+                <div class="analysis-section">
+                    <h3>Subgraph Extraction</h3>
+                    <p>Extract a subgraph around a central node.</p>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label for="subgraph-center">Central Node:</label>
+                        <input type="text" id="subgraph-center" placeholder="Central node title">
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label for="subgraph-distance">Distance:</label>
+                        <select id="subgraph-distance">
+                            <option value="1">1</option>
+                            <option value="2" selected>2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+                    
+                    <button onclick="extractSubgraph()">Extract Subgraph</button>
+                    <button onclick="resetHighlighting()">Reset</button>
+                    
+                    <div id="subgraph-result" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="graph-container">
+            <div id="loading" class="loading">Loading knowledge garden...</div>
+            <svg id="graph"></svg>
+            <div class="controls">
+                <button onclick="resetZoom()">Reset View</button>
+                <button onclick="toggleLabels()">Toggle Labels</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/graph-visualization.js"></script>
+    <script src="js/graph-analysis.js"></script>
+    <script src="js/ui-interactions.js"></script>
+</body>
+</html> 
