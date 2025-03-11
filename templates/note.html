@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }} - Knowledge Garden</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .note-content {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .image-container {
+            margin: 20px 0;
+        }
+        .image-caption {
+            font-style: italic;
+            color: #666;
+            margin-top: 8px;
+            text-align: center;
+        }
+        .metadata {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Knowledge Garden</a>
+    
+    <div class="note-content">
+        {{ content | safe }}
+    </div>
+
+    <script>
+        // Script to enhance image display
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find all images in the content
+            const images = document.querySelectorAll('.note-content img');
+            
+            // Process each image
+            images.forEach(function(img) {
+                // Create a container for the image
+                const container = document.createElement('div');
+                container.className = 'image-container';
+                
+                // Move the image into the container
+                img.parentNode.insertBefore(container, img);
+                container.appendChild(img);
+                
+                // Add a caption if the image has an alt text
+                if (img.alt && img.alt !== '') {
+                    const caption = document.createElement('div');
+                    caption.className = 'image-caption';
+                    caption.textContent = img.alt;
+                    container.appendChild(caption);
+                }
+                
+                // Make images clickable to view full size
+                img.style.cursor = 'pointer';
+                img.addEventListener('click', function() {
+                    window.open(img.src, '_blank');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

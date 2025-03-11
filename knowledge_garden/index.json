@@ -407,6 +407,33 @@
       "related_notes": [
         "latent self aware knowledge graphing paradigms in LLMs - Exploration Summary"
       ]
+    },
+    "Agentic Deep Graph Reasoning Yields": {
+      "path": "notes/agentic_deep_graph_reasoning_yields.md",
+      "created": "2025-03-11T03:06:08.047043",
+      "tags": [
+        "project",
+        "research"
+      ],
+      "related_notes": []
+    },
+    "Autonomous-Knowledge-Gardening-at-Scale": {
+      "path": "notes/autonomous-knowledge-gardening-at-scale.md",
+      "created": "2025-03-11T03:14:15.869376",
+      "tags": [],
+      "related_notes": []
+    },
+    "": {
+      "path": "notes/.md",
+      "created": "2025-03-11T03:27:16.192533",
+      "tags": [],
+      "related_notes": []
+    },
+    "Construction-of-a-spatial-beating-frequency-vecK-textmoire-in-a": {
+      "path": "notes/construction-of-a-spatial-beating-frequency-veck-textmoire-in-a.md",
+      "created": "2025-03-11T03:29:54.713536",
+      "tags": [],
+      "related_notes": []
     }
   },
   "tags": {
@@ -725,9 +752,15 @@
     ],
     "computational efficiency": [
       "Challenges in Developing Self-Aware Knowledge Models"
+    ],
+    "project": [
+      "Agentic Deep Graph Reasoning Yields"
+    ],
+    "research": [
+      "Agentic Deep Graph Reasoning Yields"
     ]
   },
-  "last_updated": "2025-03-11T00:07:51.843151",
+  "last_updated": "2025-03-11T03:29:54.715640",
   "paths": {
     "agentic tool calling pipelines": {
       "path": "paths/agentic_tool_calling_pipelines.json",

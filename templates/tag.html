@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tag: {{ tag }} - Knowledge Garden</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .notes-list {
+            list-style: none;
+            padding: 0;
+        }
+        .notes-list li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Knowledge Garden</a>
+    
+    <h1>Notes tagged with "{{ tag }}"</h1>
+    
+    <div class="card">
+        <ul class="notes-list">
+            {% for title in notes %}
+                <li><a href="/note/{{ title }}">{{ title }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
